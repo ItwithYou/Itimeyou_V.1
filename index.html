@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>iTimeYou - ເຊື່ອມຕໍ່ ແບ່ງປັນ ສຳຜັດ</title>
+<meta name="description" content="Social marketplace for Lao culture and experiences">
+<meta name="theme-color" content="#2ABFB0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="iTimeYou">
+<link rel="manifest" href="/manifest.json">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --teal:#2ABFB0;--teal2:#1A9E95;--teal3:#e8f9f8;
+  --bg:#f5f5f5;--card:#fff;--text:#1a1a1a;--muted:#888;
+  --border:#e8e8e8;--red:#e74c3c;--gold:#f39c12;
+  --radius:14px;--nav:60px;
+}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+body{background:var(--bg);color:var(--text)}
+
+/* ─── Loading ─── */
+#loading{position:fixed;inset:0;background:var(--teal);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s}
+#loading.out{opacity:0;pointer-events:none}
+#loading .logo{font-size:42px;font-weight:900;color:#fff;letter-spacing:-1px}
+#loading .sub{font-size:14px;color:rgba(255,255,255,.8);margin-top:6px}
+.spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin-top:32px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── Auth ─── */
+#auth-screen{position:fixed;inset:0;background:#fff;display:none;flex-direction:column;overflow:auto}
+#auth-screen.show{display:flex}
+.auth-hero{background:linear-gradient(135deg,var(--teal),var(--teal2));padding:48px 24px 36px;text-align:center}
+.auth-hero h1{font-size:34px;font-weight:900;color:#fff;letter-spacing:-1px}
+.auth-hero p{color:rgba(255,255,255,.85);margin-top:6px;font-size:15px}
+.auth-tabs{display:flex;border-bottom:2px solid var(--border);background:#fff}
+.auth-tab{flex:1;padding:14px;text-align:center;font-size:15px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.auth-tab.active{color:var(--teal);border-bottom-color:var(--teal)}
+.auth-form{padding:24px;display:none;flex-direction:column;gap:14px}
+.auth-form.show{display:flex}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;font-weight:600;color:var(--muted)}
+.field input,.field select{padding:13px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;outline:none;transition:border-color .2s}
+.field input:focus{border-color:var(--teal)}
+.btn{padding:14px;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;border:none;transition:all .15s;width:100%}
+.btn-primary{background:var(--teal);color:#fff}
+.btn-primary:active{background:var(--teal2)}
+.btn-outline{background:#fff;color:var(--teal);border:2px solid var(--teal)}
+.btn-gray{background:var(--bg);color:var(--text);border:1.5px solid var(--border)}
+.btn-sm{padding:8px 16px;font-size:13px;width:auto;border-radius:8px}
+.auth-or{text-align:center;color:var(--muted);font-size:13px;position:relative}
+.auth-or::before,.auth-or::after{content:'';position:absolute;top:50%;width:42%;height:1px;background:var(--border)}
+.auth-or::before{left:0}.auth-or::after{right:0}
+.auth-err{color:var(--red);font-size:13px;text-align:center;display:none}
+.auth-err.show{display:block}
+
+/* ─── Main App ─── */
+#app{position:fixed;inset:0;display:none;flex-direction:column}
+#app.show{display:flex}
+.screens{flex:1;overflow:hidden;position:relative}
+.screen{position:absolute;inset:0;bottom:var(--nav);overflow-y:auto;display:none;background:var(--bg)}
+.screen.active{display:block}
+.screen-inner{padding:0 0 16px}
+
+/* ─── Top Bar ─── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border)}
+.topbar-logo{font-size:22px;font-weight:900;color:var(--teal)}
+.topbar-actions{display:flex;gap:10px;align-items:center}
+.icon-btn{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--teal3);cursor:pointer;font-size:17px;border:none}
+
+/* ─── Bottom Nav ─── */
+.bottom-nav{height:var(--nav);background:#fff;border-top:1px solid var(--border);display:flex;align-items:center;position:fixed;bottom:0;left:0;right:0;z-index:200}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:2px;height:100%;border:none;background:none}
+.nav-icon{font-size:22px;transition:transform .15s}
+.nav-label{font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.nav-item.active .nav-icon{transform:scale(1.1)}
+.nav-item.active .nav-label{color:var(--teal)}
+.nav-create{width:46px;height:46px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;box-shadow:0 4px 16px rgba(42,191,176,.4);margin-bottom:4px}
+
+/* ─── Stories ─── */
+.stories{display:flex;gap:12px;padding:14px 16px;overflow-x:auto;background:#fff;border-bottom:1px solid var(--border)}
+.stories::-webkit-scrollbar{display:none}
+.story{display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;cursor:pointer}
+.story-ring{width:58px;height:58px;border-radius:50%;padding:2.5px;background:linear-gradient(135deg,var(--teal),var(--gold))}
+.story-ring.add{background:var(--border)}
+.story-av{width:100%;height:100%;border-radius:50%;object-fit:cover;background:var(--teal3);display:flex;align-items:center;justify-content:center;font-size:22px;border:2px solid #fff}
+.story-name{font-size:10px;color:var(--text);max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+
+/* ─── Feed ─── */
+.post-card{background:#fff;margin-bottom:10px}
+.post-head{display:flex;align-items:center;gap:10px;padding:12px 14px 8px}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--teal3);display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden;flex-shrink:0}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.post-meta{flex:1}
+.post-author{font-size:14px;font-weight:700}
+.post-time{font-size:12px;color:var(--muted)}
+.post-more{font-size:20px;color:var(--muted);cursor:pointer;padding:4px}
+.post-text{padding:0 14px 10px;font-size:15px;line-height:1.5}
+.post-img{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--teal3)}
+.post-actions{display:flex;padding:10px 14px;gap:18px;border-top:1px solid var(--border)}
+.post-action{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);cursor:pointer;border:none;background:none;font-weight:600}
+.post-action.liked{color:var(--red)}
+.post-action svg{width:18px;height:18px;fill:currentColor}
+.post-likes{font-size:13px;color:var(--muted);padding:0 14px 8px;font-weight:600}
+
+/* ─── Explore / Marketplace ─── */
+.section-head{padding:16px 16px 8px;display:flex;align-items:center;justify-content:space-between}
+.section-title{font-size:17px;font-weight:800}
+.see-all{font-size:13px;color:var(--teal);font-weight:600}
+.cat-scroll{display:flex;gap:10px;padding:0 16px 12px;overflow-x:auto}
+.cat-scroll::-webkit-scrollbar{display:none}
+.cat-chip{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;cursor:pointer}
+.cat-icon{width:56px;height:56px;border-radius:16px;background:var(--teal3);display:flex;align-items:center;justify-content:center;font-size:24px;transition:all .15s}
+.cat-chip.active .cat-icon{background:var(--teal);transform:scale(1.05)}
+.cat-name{font-size:11px;font-weight:600;color:var(--text)}
+.listings{display:flex;flex-direction:column;gap:12px;padding:0 16px}
+.listing-card{background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);cursor:pointer;transition:transform .15s}
+.listing-card:active{transform:scale(.98)}
+.listing-img{width:100%;height:180px;object-fit:cover;background:linear-gradient(135deg,var(--teal3),var(--teal))}
+.listing-img-placeholder{width:100%;height:180px;display:flex;align-items:center;justify-content:center;font-size:48px;background:var(--teal3)}
+.listing-info{padding:12px 14px}
+.listing-name{font-size:16px;font-weight:700;margin-bottom:4px}
+.listing-loc{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px}
+.listing-row{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.listing-price{font-size:17px;font-weight:800;color:var(--teal)}
+.listing-rating{font-size:13px;color:var(--gold);font-weight:600}
+.listing-badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700;background:var(--teal3);color:var(--teal)}
+
+/* ─── Horizontal card scroll ─── */
+.hscroll{display:flex;gap:14px;padding:0 16px;overflow-x:auto}
+.hscroll::-webkit-scrollbar{display:none}
+.hcard{width:220px;flex-shrink:0;background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);cursor:pointer}
+.hcard-img{width:100%;height:130px;object-fit:cover;background:var(--teal3);display:flex;align-items:center;justify-content:center;font-size:40px}
+.hcard-body{padding:10px 12px}
+.hcard-title{font-size:14px;font-weight:700;margin-bottom:3px}
+.hcard-sub{font-size:12px;color:var(--muted)}
+.hcard-price{font-size:15px;font-weight:800;color:var(--teal);margin-top:6px}
+
+/* ─── Messages ─── */
+.chat-list{display:flex;flex-direction:column}
+.chat-item{display:flex;align-items:center;gap:12px;padding:13px 16px;background:#fff;border-bottom:1px solid var(--border);cursor:pointer}
+.chat-item:active{background:var(--teal3)}
+.chat-av{width:48px;height:48px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;overflow:hidden}
+.chat-av img{width:100%;height:100%;object-fit:cover}
+.chat-info{flex:1;min-width:0}
+.chat-name{font-size:15px;font-weight:700}
+.chat-preview{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.chat-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.chat-time{font-size:11px;color:var(--muted)}
+.chat-badge{width:20px;height:20px;border-radius:50%;background:var(--teal);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+
+/* ─── Chat Screen ─── */
+.chat-topbar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.back-btn{font-size:22px;cursor:pointer;border:none;background:none;padding:4px 8px 4px 0}
+.chat-peer{flex:1}
+.chat-peer-name{font-size:16px;font-weight:700}
+.chat-peer-status{font-size:12px;color:var(--teal)}
+.chat-messages{padding:14px;display:flex;flex-direction:column;gap:10px;min-height:calc(100vh - 180px)}
+.msg{max-width:78%;display:flex;flex-direction:column}
+.msg.me{align-self:flex-end;align-items:flex-end}
+.msg.them{align-self:flex-start}
+.msg-bubble{padding:10px 14px;border-radius:18px;font-size:15px;line-height:1.4}
+.msg.me .msg-bubble{background:var(--teal);color:#fff;border-bottom-right-radius:4px}
+.msg.them .msg-bubble{background:#fff;border-bottom-left-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.msg-time{font-size:10px;color:var(--muted);margin-top:3px;padding:0 4px}
+.msg-img{max-width:220px;border-radius:12px;overflow:hidden}
+.msg-img img{width:100%;display:block}
+.chat-input-bar{position:fixed;bottom:var(--nav);left:0;right:0;display:flex;align-items:center;gap:8px;padding:10px 12px;background:#fff;border-top:1px solid var(--border)}
+.chat-input{flex:1;padding:10px 16px;border-radius:24px;border:1.5px solid var(--border);font-size:15px;outline:none}
+.chat-input:focus{border-color:var(--teal)}
+.send-btn{width:42px;height:42px;border-radius:50%;background:var(--teal);border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+
+/* ─── Profile ─── */
+.profile-header{background:linear-gradient(135deg,var(--teal),var(--teal2));padding:32px 20px 20px;text-align:center}
+.profile-av{width:80px;height:80px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 12px;border:3px solid rgba(255,255,255,.5);overflow:hidden}
+.profile-av img{width:100%;height:100%;object-fit:cover}
+.profile-name{font-size:20px;font-weight:800;color:#fff}
+.profile-bio{font-size:14px;color:rgba(255,255,255,.8);margin-top:4px}
+.profile-stats{display:flex;background:#fff;border-bottom:1px solid var(--border)}
+.pstat{flex:1;display:flex;flex-direction:column;align-items:center;padding:14px 8px;border-right:1px solid var(--border)}
+.pstat:last-child{border-right:none}
+.pstat-num{font-size:20px;font-weight:800;color:var(--teal)}
+.pstat-label{font-size:11px;color:var(--muted);font-weight:600}
+.profile-actions{display:flex;gap:10px;padding:14px 16px;background:#fff;border-bottom:1px solid var(--border)}
+.grid-posts{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:2px}
+.grid-post{aspect-ratio:1;background:var(--teal3);overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px}
+.grid-post img{width:100%;height:100%;object-fit:cover}
+
+/* ─── Create ─── */
+.create-tabs{display:flex;background:#fff;border-bottom:1px solid var(--border)}
+.create-tab{flex:1;padding:14px;text-align:center;font-size:15px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.create-tab.active{color:var(--teal);border-bottom-color:var(--teal)}
+.create-form{padding:16px;display:flex;flex-direction:column;gap:14px;background:#fff}
+.photo-upload{width:100%;height:200px;border:2px dashed var(--border);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:8px;background:var(--teal3);transition:all .2s}
+.photo-upload:hover{border-color:var(--teal);background:var(--teal3)}
+.photo-upload-icon{font-size:40px}
+.photo-upload-text{font-size:14px;color:var(--muted);font-weight:600}
+.photo-preview{width:100%;height:200px;object-fit:cover;border-radius:var(--radius)}
+textarea{padding:13px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;outline:none;resize:none;font-family:inherit;line-height:1.5}
+textarea:focus{border-color:var(--teal)}
+.price-row{display:flex;gap:12px}
+.price-row .field{flex:1}
+
+/* ─── Wallet ─── */
+.wallet-card{margin:16px;background:linear-gradient(135deg,var(--teal),var(--teal2));border-radius:var(--radius);padding:20px;color:#fff}
+.wallet-label{font-size:13px;opacity:.8}
+.wallet-amount{font-size:36px;font-weight:900;margin:6px 0}
+.wallet-currency{font-size:15px;opacity:.8}
+.wallet-methods{padding:0 16px;display:flex;flex-direction:column;gap:12px}
+.wallet-method{background:#fff;border-radius:var(--radius);padding:16px;display:flex;align-items:center;gap:14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.method-icon{width:48px;height:48px;border-radius:12px;background:var(--teal3);display:flex;align-items:center;justify-content:center;font-size:24px}
+.method-name{font-size:15px;font-weight:700}
+.method-addr{font-size:12px;color:var(--muted);font-family:monospace;margin-top:2px}
+
+/* ─── Modal ─── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:flex-end}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:20px 20px 0 0;width:100%;max-height:90vh;overflow-y:auto;padding:20px}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px}
+.modal-title{font-size:18px;font-weight:800;margin-bottom:16px}
+
+/* ─── Toast ─── */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:12px 20px;border-radius:24px;font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+
+/* ─── Language Toggle ─── */
+.lang-btn{padding:5px 10px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid var(--teal);color:var(--teal);background:#fff;cursor:pointer}
+
+/* ─── Empty state ─── */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;gap:14px;color:var(--muted)}
+.empty-icon{font-size:56px}
+.empty-text{font-size:16px;font-weight:600;text-align:center}
+
+/* ─── Notification dot ─── */
+.notif-dot{width:8px;height:8px;background:var(--red);border-radius:50%;position:absolute;top:6px;right:6px}
+
+/* ─── Listing detail modal ─── */
+.det-img{width:100%;height:220px;object-fit:cover;border-radius:12px;background:var(--teal3);display:flex;align-items:center;justify-content:center;font-size:64px;margin-bottom:14px}
+.det-title{font-size:20px;font-weight:800;margin-bottom:6px}
+.det-desc{font-size:15px;line-height:1.6;color:#444;margin-bottom:14px}
+.det-host{display:flex;align-items:center;gap:10px;padding:12px;background:var(--teal3);border-radius:12px;margin-bottom:14px}
+.det-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.tag{padding:4px 12px;background:var(--teal3);color:var(--teal);border-radius:20px;font-size:12px;font-weight:700}
+
+/* ─── QR code ─── */
+#qr-canvas{display:block;margin:16px auto;border-radius:12px}
+
+/* ─── Animations ─── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .3s ease both}
+@keyframes pop{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
+.pop{animation:pop .2s ease}
+
+/* ─── Utility ─── */
+.flex{display:flex}.flex-col{flex-direction:column}.items-center{align-items:center}
+.gap-8{gap:8px}.gap-12{gap:12px}.p16{padding:16px}.mt8{margin-top:8px}.mt16{margin-top:16px}
+.fw700{font-weight:700}.fw800{font-weight:800}.f13{font-size:13px}.f15{font-size:15px}
+.c-teal{color:var(--teal)}.c-muted{color:var(--muted)}
+.hr{height:1px;background:var(--border);border:none;margin:0}
+.pill{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.pill-teal{background:var(--teal3);color:var(--teal)}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOADING ═══ -->
+<div id="loading">
+  <div class="logo">iTimeYou</div>
+  <div class="sub">ເຊື່ອມຕໍ່ · ແບ່ງປັນ · ສຳຜັດ</div>
+  <div class="spinner"></div>
+</div>
+
+<!-- ═══ AUTH ═══ -->
+<div id="auth-screen">
+  <div class="auth-hero">
+    <h1>iTimeYou</h1>
+    <p id="auth-subtitle">Connect · Share · Experience Lao Culture</p>
+  </div>
+  <div class="auth-tabs">
+    <div class="auth-tab active" onclick="switchAuthTab('login')" id="tab-login">Login</div>
+    <div class="auth-tab" onclick="switchAuthTab('register')" id="tab-register">Register</div>
+  </div>
+
+  <!-- Login Form -->
+  <div class="auth-form show" id="form-login">
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="your@email.com">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="••••••••">
+    </div>
+    <div class="auth-err" id="login-err"></div>
+    <button class="btn btn-primary" onclick="doLogin()">Login</button>
+    <div class="auth-or">or</div>
+    <button class="btn btn-gray" onclick="loginGoogle()">🌐 Continue with Google</button>
+    <button class="btn btn-gray" onclick="loginGuest()">👤 Browse as Guest</button>
+  </div>
+
+  <!-- Register Form -->
+  <div class="auth-form" id="form-register">
+    <div class="field">
+      <label>Full Name</label>
+      <input type="text" id="reg-name" placeholder="Your name">
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="reg-email" placeholder="your@email.com">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="reg-pass" placeholder="Min 6 characters">
+    </div>
+    <div class="auth-err" id="reg-err"></div>
+    <button class="btn btn-primary" onclick="doRegister()">Create Account</button>
+    <div class="auth-or">or</div>
+    <button class="btn btn-gray" onclick="loginGoogle()">🌐 Continue with Google</button>
+  </div>
+</div>
+
+<!-- ═══ MAIN APP ═══ -->
+<div id="app">
+  <div class="screens">
+
+    <!-- ── FEED ── -->
+    <div class="screen active" id="screen-feed">
+      <div class="topbar">
+        <div class="topbar-logo">iTimeYou</div>
+        <div class="topbar-actions">
+          <button class="lang-btn" onclick="toggleLang()">EN/ລາວ</button>
+          <button class="icon-btn" onclick="openWallet()" title="Wallet">💳</button>
+          <button class="icon-btn" onclick="showNotifications()" style="position:relative" title="Notifications">
+            🔔<span class="notif-dot"></span>
+          </button>
+        </div>
+      </div>
+      <!-- Stories -->
+      <div class="stories" id="stories-row">
+        <div class="story" onclick="addStory()">
+          <div class="story-ring add">
+            <div class="story-av" style="font-size:26px">➕</div>
+          </div>
+          <span class="story-name" data-t="myStory">My Story</span>
+        </div>
+      </div>
+      <!-- Feed posts -->
+      <div id="feed-posts"><div class="empty"><div class="empty-icon">✨</div><div class="empty-text" data-t="loadingFeed">Loading feed...</div></div></div>
+    </div>
+
+    <!-- ── EXPLORE ── -->
+    <div class="screen" id="screen-explore">
+      <div class="topbar">
+        <div class="topbar-logo" data-t="explore">Explore</div>
+        <div class="topbar-actions">
+          <button class="icon-btn" title="Search">🔍</button>
+          <button class="icon-btn" title="Filter">⚙️</button>
+        </div>
+      </div>
+      <!-- Category chips -->
+      <div style="background:#fff;padding:10px 0 0;border-bottom:1px solid var(--border)">
+        <div class="cat-scroll" id="cat-chips"></div>
+      </div>
+      <!-- Listings -->
+      <div class="section-inner">
+        <div class="section-head">
+          <span class="section-title" data-t="featured">Featured</span>
+          <span class="see-all" data-t="seeAll">See all</span>
+        </div>
+        <div class="hscroll" id="featured-row"></div>
+        <div class="section-head" style="margin-top:8px">
+          <span class="section-title" id="cat-title" data-t="allListings">All Listings</span>
+        </div>
+        <div class="listings" id="listings-grid"></div>
+      </div>
+    </div>
+
+    <!-- ── CREATE ── -->
+    <div class="screen" id="screen-create">
+      <div class="topbar">
+        <div class="topbar-logo" data-t="create">Create</div>
+      </div>
+      <div class="create-tabs">
+        <div class="create-tab active" onclick="switchCreateTab('post')" id="ctab-post" data-t="post">Post</div>
+        <div class="create-tab" onclick="switchCreateTab('listing')" id="ctab-listing" data-t="listing">Listing</div>
+      </div>
+
+      <!-- Post form -->
+      <div id="create-post" class="create-form">
+        <label class="photo-upload" id="post-photo-label">
+          <input type="file" accept="image/*" id="post-photo-input" style="display:none" onchange="previewPostPhoto(this)">
+          <div class="photo-upload-icon">📸</div>
+          <div class="photo-upload-text" data-t="addPhoto">Add a photo</div>
+        </label>
+        <img id="post-photo-preview" class="photo-preview" style="display:none">
+        <div class="field">
+          <label data-t="whatsOnMind">What's on your mind?</label>
+          <textarea id="post-text" rows="4" placeholder="Share your experience..."></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="createPost()" data-t="sharePost">Share Post</button>
+      </div>
+
+      <!-- Listing form -->
+      <div id="create-listing" class="create-form" style="display:none">
+        <label class="photo-upload" id="list-photo-label">
+          <input type="file" accept="image/*" id="list-photo-input" style="display:none" onchange="previewListPhoto(this)">
+          <div class="photo-upload-icon">🏠</div>
+          <div class="photo-upload-text" data-t="addListingPhoto">Add listing photo</div>
+        </label>
+        <img id="list-photo-preview" class="photo-preview" style="display:none">
+        <div class="field">
+          <label data-t="listingTitle">Title</label>
+          <input type="text" id="list-title" placeholder="e.g. Lao cooking class">
+        </div>
+        <div class="field">
+          <label data-t="category">Category</label>
+          <select id="list-cat">
+            <option value="homestay">🏡 Homestay</option>
+            <option value="food">🍜 Food & Restaurant</option>
+            <option value="cultural">🎭 Cultural Experience</option>
+            <option value="guide">🧭 Tour Guide</option>
+            <option value="time">⏰ Time/Service</option>
+            <option value="expert">🎓 Expert Consultation</option>
+          </select>
+        </div>
+        <div class="field">
+          <label data-t="location">Location</label>
+          <input type="text" id="list-location" placeholder="City, Province">
+        </div>
+        <div class="price-row">
+          <div class="field">
+            <label data-t="price">Price (USD)</label>
+            <input type="number" id="list-price" placeholder="0">
+          </div>
+          <div class="field">
+            <label data-t="duration">Duration</label>
+            <input type="text" id="list-duration" placeholder="e.g. 2 hours">
+          </div>
+        </div>
+        <div class="field">
+          <label data-t="description">Description</label>
+          <textarea id="list-desc" rows="3" placeholder="Describe your offering..."></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="createListing()" data-t="publishListing">Publish Listing</button>
+      </div>
+    </div>
+
+    <!-- ── MESSAGES ── -->
+    <div class="screen" id="screen-messages">
+      <div class="topbar">
+        <div class="topbar-logo" data-t="messages">Messages</div>
+        <div class="topbar-actions"><button class="icon-btn">✏️</button></div>
+      </div>
+      <div class="chat-list" id="chat-list"></div>
+    </div>
+
+    <!-- ── CHAT ── -->
+    <div class="screen" id="screen-chat">
+      <div class="chat-topbar">
+        <button class="back-btn" onclick="goBack()">←</button>
+        <div class="chat-av" id="chat-peer-av" style="width:36px;height:36px;font-size:16px">👤</div>
+        <div class="chat-peer" style="margin-left:10px">
+          <div class="chat-peer-name" id="chat-peer-name">Chat</div>
+          <div class="chat-peer-status">Online</div>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" onclick="startCall('audio')">📞</button>
+          <button class="icon-btn" onclick="startCall('video')">📹</button>
+        </div>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-bar">
+        <label style="cursor:pointer;font-size:22px" title="Send photo">
+          📷<input type="file" accept="image/*" id="chat-img-input" style="display:none" onchange="sendChatImage(this)">
+        </label>
+        <input class="chat-input" id="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMsg()">
+        <button class="send-btn" onclick="sendMsg()">➤</button>
+      </div>
+    </div>
+
+    <!-- ── PROFILE ── -->
+    <div class="screen" id="screen-profile">
+      <div class="profile-header" id="profile-header">
+        <div class="profile-av" id="profile-av">👤</div>
+        <div class="profile-name" id="profile-name">Loading...</div>
+        <div class="profile-bio" id="profile-bio">iTimeYou member</div>
+      </div>
+      <div class="profile-stats">
+        <div class="pstat"><div class="pstat-num" id="pstat-posts">0</div><div class="pstat-label" data-t="posts">Posts</div></div>
+        <div class="pstat"><div class="pstat-num" id="pstat-followers">0</div><div class="pstat-label" data-t="followers">Followers</div></div>
+        <div class="pstat"><div class="pstat-num" id="pstat-following">0</div><div class="pstat-label" data-t="following">Following</div></div>
+      </div>
+      <div class="profile-actions">
+        <button class="btn btn-outline" onclick="editProfile()" data-t="editProfile" style="flex:1">Edit Profile</button>
+        <button class="btn btn-gray btn-sm" onclick="openWallet()" style="flex:none">💳</button>
+        <button class="btn btn-gray btn-sm" onclick="doLogout()" style="flex:none">🚪</button>
+      </div>
+      <div class="section-head"><span class="section-title" data-t="myPosts">My Posts</span></div>
+      <div class="grid-posts" id="profile-grid"></div>
+    </div>
+
+  </div><!-- /screens -->
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="navTo('feed')" id="nav-feed">
+      <span class="nav-icon">🏠</span><span class="nav-label" data-t="home">Home</span>
+    </button>
+    <button class="nav-item" onclick="navTo('explore')" id="nav-explore">
+      <span class="nav-icon">🔍</span><span class="nav-label" data-t="explore">Explore</span>
+    </button>
+    <button class="nav-item" onclick="navTo('create')" id="nav-create">
+      <div class="nav-create">➕</div>
+    </button>
+    <button class="nav-item" onclick="navTo('messages')" id="nav-messages">
+      <span class="nav-icon">💬</span><span class="nav-label" data-t="messages">Messages</span>
+    </button>
+    <button class="nav-item" onclick="navTo('profile')" id="nav-profile">
+      <span class="nav-icon">👤</span><span class="nav-label" data-t="profile">Profile</span>
+    </button>
+  </nav>
+</div><!-- /app -->
+
+<!-- ═══ MODALS ═══ -->
+<!-- Wallet Modal -->
+<div class="modal-overlay" id="wallet-modal" onclick="if(event.target===this)closeWallet()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" data-t="myWallet">💳 My Wallet</div>
+    <div class="wallet-card">
+      <div class="wallet-label">Total Balance</div>
+      <div class="wallet-amount">$0.00</div>
+      <div class="wallet-currency">Multi-currency</div>
+    </div>
+    <div style="height:16px"></div>
+    <div class="modal-title" data-t="paymentMethods" style="font-size:15px">Payment Methods</div>
+    <div class="wallet-methods">
+      <div class="wallet-method" onclick="showQR('bcel','BCEL One','3000123456789')">
+        <div class="method-icon">🏦</div>
+        <div><div class="method-name">BCEL One</div><div class="method-addr">3000123456789</div></div>
+        <div style="margin-left:auto">▶</div>
+      </div>
+      <div class="wallet-method" onclick="showQR('usdt','USDT TRC20','TJmVKx9Pf1YnnGJxqcU7DxUzpuMSHQmNR3')">
+        <div class="method-icon">💚</div>
+        <div><div class="method-name">USDT TRC20</div><div class="method-addr" style="font-size:10px">TJmVKx9Pf1YnnGJxqcU7...</div></div>
+        <div style="margin-left:auto">▶</div>
+      </div>
+      <div class="wallet-method" onclick="showQR('xrp','XRP','rN7n3473SaZBCG4dFL87bQGRCzgEuMbmFS')">
+        <div class="method-icon">💜</div>
+        <div><div class="method-name">XRP Ripple</div><div class="method-addr" style="font-size:10px">rN7n3473SaZBCG4dFL87...</div></div>
+        <div style="margin-left:auto">▶</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <button class="btn btn-gray" onclick="closeWallet()">Close</button>
+  </div>
+</div>
+
+<!-- QR Modal -->
+<div class="modal-overlay" id="qr-modal" onclick="if(event.target===this)closeQR()">
+  <div class="modal" style="text-align:center">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="qr-title">Scan to Pay</div>
+    <div id="qr-address" style="font-family:monospace;font-size:12px;color:var(--muted);word-break:break-all;margin-bottom:12px"></div>
+    <canvas id="qr-canvas" width="220" height="220"></canvas>
+    <div style="margin-top:14px;font-size:13px;color:var(--muted)">Scan with your payment app</div>
+    <div style="height:16px"></div>
+    <button class="btn btn-gray" onclick="closeQR()">Close</button>
+  </div>
+</div>
+
+<!-- Listing Detail Modal -->
+<div class="modal-overlay" id="listing-modal" onclick="if(event.target===this)closeListing()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="listing-detail-content"></div>
+  </div>
+</div>
+
+<!-- Post Create Success Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Call Overlay -->
+<div id="call-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px">
+  <div style="font-size:80px">📞</div>
+  <div style="color:#fff;font-size:24px;font-weight:700" id="call-name">Calling...</div>
+  <div style="color:rgba(255,255,255,.6);font-size:16px">Connecting...</div>
+  <button onclick="endCall()" style="width:70px;height:70px;border-radius:50%;background:var(--red);border:none;color:#fff;font-size:32px;cursor:pointer;margin-top:24px">📵</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  FIREBASE INIT
+// ═══════════════════════════════════════════
+const firebaseConfig={
+  apiKey:"AIzaSyBctt9A4ErSCw_uX0ddU7qbT0uWNZv9lRY",
+  authDomain:"itimeyou-88.firebaseapp.com",
+  projectId:"itimeyou-88",
+  storageBucket:"itimeyou-88.firebasestorage.app",
+  messagingSenderId:"410299185915",
+  appId:"1:410299185915:web:56a91d5d6f9d535638ce5e"
+};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const db=firebase.firestore();
+const stor=firebase.storage();
+
+// ═══════════════════════════════════════════
+//  TRANSLATIONS
+// ═══════════════════════════════════════════
+const T={
+  en:{
+    home:'Home',explore:'Explore',messages:'Messages',profile:'Profile',create:'Create',
+    post:'Post',listing:'Listing',myStory:'My Story',loadingFeed:'Loading feed...',
+    noPostsYet:'No posts yet. Be the first!',featured:'Featured',seeAll:'See all',
+    allListings:'All Listings',addPhoto:'Add a photo',whatsOnMind:"What's on your mind?",
+    sharePost:'Share Post',addListingPhoto:'Add listing photo',listingTitle:'Title',
+    category:'Category',location:'Location',price:'Price (USD)',duration:'Duration',
+    description:'Description',publishListing:'Publish Listing',myWallet:'💳 My Wallet',
+    paymentMethods:'Payment Methods',editProfile:'Edit Profile',myPosts:'My Posts',
+    posts:'Posts',followers:'Followers',following:'Following',
+    booking:'Book Now',share:'Share',like:'Like',comment:'Comment',
+    loginTitle:'Login to iTimeYou',registerTitle:'Create Account',
+  },
+  lo:{
+    home:'ໜ້າຫຼັກ',explore:'ສຳຫຼວດ',messages:'ຂໍ້ຄວາມ',profile:'ໂປຣໄຟລ໌',create:'ສ້າງ',
+    post:'ໂພສ',listing:'ລາຍການ',myStory:'ເລື່ອງຂອງຂ້ອຍ',loadingFeed:'ກຳລັງໂຫຼດ...',
+    noPostsYet:'ຍັງບໍ່ມີໂພສ. ເປັນຄົນທຳອິດ!',featured:'ແນະນຳ',seeAll:'ເບິ່ງທັງໝົດ',
+    allListings:'ທຸກລາຍການ',addPhoto:'ເພີ່ມຮູບ',whatsOnMind:'ຄິດຫຍັງຢູ່?',
+    sharePost:'ແຊຣໂພສ',addListingPhoto:'ເພີ່ມຮູບລາຍການ',listingTitle:'ຊື່ລາຍການ',
+    category:'ໝວດໝູ່',location:'ສະຖານທີ່',price:'ລາຄາ (ໂດລາ)',duration:'ໄລຍະເວລາ',
+    description:'ລາຍລະອຽດ',publishListing:'ເຜີຍແຜ່ລາຍການ',myWallet:'💳 ກະເປົາເງິນ',
+    paymentMethods:'ວິທີການຊຳລະ',editProfile:'ແກ້ໄຂໂປຣໄຟລ໌',myPosts:'ໂພສຂອງຂ້ອຍ',
+    posts:'ໂພສ',followers:'ຜູ້ຕິດຕາມ',following:'ກຳລັງຕິດຕາມ',
+    booking:'ຈອງດຽວນີ້',share:'ແຊຣ',like:'ຖືກໃຈ',comment:'ຄຳເຫັນ',
+    loginTitle:'ເຂົ້າສູ່ລະບົບ',registerTitle:'ສ້າງບັນຊີ',
+  }
+};
+let lang='en';
+
+function t(key){return (T[lang][key]||T.en[key]||key);}
+function toggleLang(){lang=lang==='en'?'lo':'en';applyLang();}
+function applyLang(){
+  document.querySelectorAll('[data-t]').forEach(el=>{const k=el.getAttribute('data-t');if(T[lang][k])el.textContent=T[lang][k];});
+}
+
+// ═══════════════════════════════════════════
+//  APP STATE
+// ═══════════════════════════════════════════
+let currentUser=null;
+let currentScreen='feed';
+let prevScreen='feed';
+let activeCat='all';
+let chatPeerId=null;
+let chatPeerName='';
+let chatUnsub=null;
+let feedUnsub=null;
+let postPhotoFile=null;
+let listPhotoFile=null;
+
+// ═══════════════════════════════════════════
+//  CATEGORIES & LISTINGS DATA
+// ═══════════════════════════════════════════
+const CATS=[
+  {id:'all',icon:'🌏',name:{en:'All',lo:'ທັງໝົດ'}},
+  {id:'homestay',icon:'🏡',name:{en:'Homestay',lo:'ບ້ານພັກ'}},
+  {id:'food',icon:'🍜',name:{en:'Food',lo:'ອາຫານ'}},
+  {id:'cultural',icon:'🎭',name:{en:'Cultural',lo:'ວັດທະນະທຳ'}},
+  {id:'guide',icon:'🧭',name:{en:'Guide',lo:'ນຳທ່ຽວ'}},
+  {id:'time',icon:'⏰',name:{en:'Services',lo:'ບໍລິການ'}},
+  {id:'expert',icon:'🎓',name:{en:'Expert',lo:'ຜູ້ຊ່ຽວຊານ'}},
+];
+
+const LISTINGS=[
+  {id:1,cat:'homestay',icon:'🏡',name:'Traditional Lao Bungalow',loc:'Luang Prabang',price:45,rating:4.9,reviews:128,desc:'Authentic riverside bungalow with traditional Lao architecture. Wake up to stunning Mekong views, enjoy homemade breakfast, and immerse yourself in local culture. Just 5 min walk to temples.',duration:'Night',host:'Somchai P.',tags:['Riverside','AC','Breakfast','WiFi']},
+  {id:2,cat:'food',icon:'🍜',name:'Lao Cooking Masterclass',loc:'Vientiane',price:35,rating:4.8,reviews:94,desc:'Learn to cook authentic Lao dishes with a local chef. We visit the morning market together, pick fresh ingredients, then cook 5 traditional dishes. Take home recipes and skills!',duration:'4 hours',host:'Noy K.',tags:['Market visit','5 dishes','Certificate']},
+  {id:3,cat:'cultural',icon:'🎭',name:'Baci Ceremony Experience',loc:'Luang Prabang',price:25,rating:5.0,reviews:67,desc:'Participate in a traditional Baci (Sou Khuan) blessing ceremony with a local family. Connect with Lao spiritual traditions, receive blessings, and share a communal meal.',duration:'2 hours',host:'Bounmy Family',tags:['Traditional','Blessing','Family','Lao spirits']},
+  {id:4,cat:'guide',icon:'🧭',name:'Kuang Si Waterfall Trek',loc:'Luang Prabang',price:40,rating:4.7,reviews:203,desc:'Guided trek to the stunning Kuang Si Falls. Swim in turquoise pools, spot wildlife, visit the bear rescue center, and learn about the local ecosystem. All levels welcome.',duration:'Full day',host:'Khamla T.',tags:['Swimming','Wildlife','Trek','All levels']},
+  {id:5,cat:'time',icon:'⏰',name:'Tuk-Tuk City Tour',loc:'Vientiane',price:20,rating:4.6,reviews:156,desc:'Explore Vientiane\'s highlights in a classic tuk-tuk. Visit Patuxai, Pha That Luang, Buddha Park, and the Night Market. Flexible itinerary, stop whenever you want.',duration:'3 hours',host:'Singha D.',tags:['City tour','Flexible','Night market']},
+  {id:6,cat:'expert',icon:'🎓',name:'Lao Language Lesson',loc:'Online / Vientiane',price:30,rating:4.9,reviews:45,desc:'Private Lao language lesson with a certified teacher. Focus on practical conversation, tones, and reading. Perfect for travelers and expats. Materials included.',duration:'60 min',host:'Phonesavanh V.',tags:['Private','Materials','Certificate']},
+  {id:7,cat:'homestay',icon:'🌿',name:'Mekong Riverside Villa',loc:'Savannakhet',price:55,rating:4.8,reviews:89,desc:'Peaceful villa on the banks of the Mekong river. Enjoy sunset views, borrow bicycles, and meet friendly local families. Private pool available.',duration:'Night',host:'Vilay S.',tags:['Pool','Bikes','River view','WiFi']},
+  {id:8,cat:'food',icon:'🥘',name:'Street Food Night Tour',loc:'Luang Prabang',price:28,rating:4.9,reviews:178,desc:'Experience the best of Lao street food after dark. Try Laap, Khao Piak Sen, Tam Mak Houng, sticky rice and more at local markets. Everything included.',duration:'2.5 hours',host:'Mali B.',tags:['Night market','10+ dishes','Drinks included']},
+  {id:9,cat:'cultural',icon:'🏯',name:'Temple Morning Alms',loc:'Luang Prabang',price:15,rating:4.9,reviews:320,desc:'Witness or participate in the sacred morning almsgiving (Tak Bat) ceremony with Buddhist monks. Learn proper etiquette and the spiritual significance of this UNESCO tradition.',duration:'90 min',host:'Monk Khamtan',tags:['UNESCO','Sunrise','Sacred']},
+];
+
+// ═══════════════════════════════════════════
+//  AUTH FUNCTIONS
+// ═══════════════════════════════════════════
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const errEl=document.getElementById('login-err');
+  errEl.className='auth-err';
+  if(!email||!pass){showErr(errEl,'Please fill all fields');return;}
+  try{
+    await auth.signInWithEmailAndPassword(email,pass);
+  }catch(e){
+    // Demo fallback
+    if(e.code==='auth/user-not-found'||e.code==='auth/wrong-password'){
+      showErr(errEl,'Invalid email or password');
+    } else {
+      // Use demo mode if Firebase not configured
+      setDemoUser(email);
+    }
+  }
+}
+
+async function doRegister(){
+  const name=document.getElementById('reg-name').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const pass=document.getElementById('reg-pass').value;
+  const errEl=document.getElementById('reg-err');
+  errEl.className='auth-err';
+  if(!name||!email||!pass){showErr(errEl,'Please fill all fields');return;}
+  if(pass.length<6){showErr(errEl,'Password must be at least 6 characters');return;}
+  try{
+    const cred=await auth.createUserWithEmailAndPassword(email,pass);
+    await cred.user.updateProfile({displayName:name});
+    await db.collection('users').doc(cred.user.uid).set({
+      name,email,bio:'iTimeYou member',avatar:'',
+      followers:0,following:0,posts:0,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }catch(e){
+    if(e.code==='auth/email-already-in-use'){showErr(errEl,'Email already registered');}
+    else if(e.code==='auth/invalid-email'){showErr(errEl,'Invalid email');}
+    else{setDemoUser(email,name);}
+  }
+}
+
+async function loginGoogle(){
+  try{
+    const provider=new firebase.auth.GoogleAuthProvider();
+    const cred=await auth.signInWithPopup(provider);
+    const u=cred.user;
+    const ref=db.collection('users').doc(u.uid);
+    const doc=await ref.get();
+    if(!doc.exists){
+      await ref.set({name:u.displayName||'User',email:u.email,bio:'iTimeYou member',
+        avatar:u.photoURL||'',followers:0,following:0,posts:0,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    }
+  }catch(e){console.log('Google login error',e.message);showToast('Google login failed');}
+}
+
+async function loginGuest(){
+  try{await auth.signInAnonymously();}
+  catch(e){setDemoUser('guest@demo.com','Guest User');}
+}
+
+async function doLogout(){
+  if(feedUnsub)feedUnsub();
+  if(chatUnsub)chatUnsub();
+  try{await auth.signOut();}catch(e){}
+  currentUser=null;
+  document.getElementById('app').className='';
+  document.getElementById('auth-screen').className='auth-screen show';
+}
+
+function setDemoUser(email,name='User'){
+  currentUser={uid:'demo-'+Date.now(),email,displayName:name||email.split('@')[0],photoURL:'',isDemo:true};
+  enterApp();
+}
+
+function showErr(el,msg){el.textContent=msg;el.className='auth-err show';}
+
+function switchAuthTab(tab){
+  document.getElementById('tab-login').className='auth-tab'+(tab==='login'?' active':'');
+  document.getElementById('tab-register').className='auth-tab'+(tab==='register'?' active':'');
+  document.getElementById('form-login').className='auth-form'+(tab==='login'?' show':'');
+  document.getElementById('form-register').className='auth-form'+(tab==='register'?' show':'');
+}
+
+// ═══════════════════════════════════════════
+//  APP INITIALIZATION
+// ═══════════════════════════════════════════
+auth.onAuthStateChanged(async user=>{
+  const loading=document.getElementById('loading');
+  loading.classList.add('out');
+  setTimeout(()=>loading.style.display='none',500);
+
+  if(user){
+    currentUser=user;
+    let udata={};
+    if(!user.isAnonymous){
+      try{
+        const doc=await db.collection('users').doc(user.uid).get();
+        if(doc.exists)udata=doc.data();
+      }catch(e){}
+    }
+    currentUser._data=udata;
+    enterApp();
+  } else {
+    document.getElementById('auth-screen').className='auth-screen show';
+  }
+});
+
+function enterApp(){
+  document.getElementById('auth-screen').className='auth-screen';
+  document.getElementById('app').className='app show';
+  updateProfileUI();
+  renderCategories();
+  renderListings('all');
+  renderFeed();
+  renderChatList();
+  renderStories();
+  applyLang();
+}
+
+// ═══════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════
+function navTo(screen){
+  if(screen===currentScreen)return;
+  prevScreen=currentScreen;
+  currentScreen=screen;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const s=document.getElementById('screen-'+screen);
+  if(s)s.classList.add('active');
+  const n=document.getElementById('nav-'+screen);
+  if(n)n.classList.add('active');
+}
+
+function goBack(){
+  if(currentScreen==='chat'){
+    navTo(prevScreen==='messages'?'messages':'feed');
+  } else {
+    navTo('feed');
+  }
+}
+
+// ═══════════════════════════════════════════
+//  STORIES
+// ═══════════════════════════════════════════
+const STORY_DATA=[
+  {name:'Somchai',av:'🧑',color:'#e8f9f8'},
+  {name:'Noy',av:'👩',color:'#fff0e8'},
+  {name:'Khamla',av:'🧔',color:'#f0e8ff'},
+  {name:'Mali',av:'👧',color:'#e8fff0'},
+  {name:'Vilay',av:'🧑‍🦱',color:'#ffe8e8'},
+];
+
+function renderStories(){
+  const row=document.getElementById('stories-row');
+  const addStoryEl=row.querySelector('.story');
+  STORY_DATA.forEach(s=>{
+    const el=document.createElement('div');
+    el.className='story';
+    el.innerHTML=`<div class="story-ring"><div class="story-av" style="background:${s.color}">${s.av}</div></div><span class="story-name">${s.name}</span>`;
+    el.onclick=()=>viewStory(s);
+    row.appendChild(el);
+  });
+}
+
+function viewStory(s){showToast('📖 '+s.name+'\'s story');}
+function addStory(){showToast('📸 Story feature coming soon!');}
+
+// ═══════════════════════════════════════════
+//  FEED
+// ═══════════════════════════════════════════
+function renderFeed(){
+  const cont=document.getElementById('feed-posts');
+  try{
+    feedUnsub=db.collection('posts')
+      .orderBy('timestamp','desc')
+      .limit(20)
+      .onSnapshot(snap=>{
+        if(snap.empty){
+          cont.innerHTML=`<div class="empty"><div class="empty-icon">✨</div><div class="empty-text">${t('noPostsYet')}</div></div>`;
+          // Show demo posts
+          renderDemoPosts();
+          return;
+        }
+        cont.innerHTML='';
+        snap.forEach(doc=>cont.appendChild(buildPostCard({id:doc.id,...doc.data()})));
+      },err=>{renderDemoPosts();});
+  }catch(e){renderDemoPosts();}
+}
+
+function renderDemoPosts(){
+  const cont=document.getElementById('feed-posts');
+  const demos=[
+    {id:'d1',author:'Somchai P.',av:'🧑',text:'Beautiful morning at Kuang Si waterfall! The water is so clear and refreshing. Highly recommend visiting early to avoid crowds 🌊',time:'2 min ago',likes:24,comments:8,hasImg:false},
+    {id:'d2',author:'Noy Kitchen',av:'👩‍🍳',text:'🍜 Just finished cooking a big batch of authentic Lao larb! The key is to use fresh herbs and toast your rice powder until it\'s golden. Book a cooking class with me!',time:'15 min ago',likes:67,comments:23,hasImg:false,listing:true},
+    {id:'d3',author:'Khamla Guide',av:'🧔',text:'Guided 8 amazing travelers today through Luang Prabang\'s temple district. Every temple tells a different story of Lao Buddhism 🙏',time:'1 hour ago',likes:45,comments:12,hasImg:false},
+    {id:'d4',author:'Mali Markets',av:'👧',text:'The night market is magical tonight! Loads of handcrafted items, silk scarves, and the most delicious grilled corn 🌽✨',time:'3 hours ago',likes:89,comments:34,hasImg:false},
+  ];
+  cont.innerHTML='';
+  demos.forEach(p=>cont.appendChild(buildPostCard(p)));
+}
+
+function buildPostCard(p){
+  const div=document.createElement('div');
+  div.className='post-card fade-up';
+  const liked=p.likedBy&&currentUser&&p.likedBy[currentUser.uid];
+  div.innerHTML=`
+    <div class="post-head">
+      <div class="avatar">${p.av||p.author?.charAt(0)||'👤'}</div>
+      <div class="post-meta">
+        <div class="post-author">${p.author||p.authorName||'User'}</div>
+        <div class="post-time">${p.time||timeAgo(p.timestamp?.toDate?.())}</div>
+      </div>
+      <div class="post-more" onclick="postOptions('${p.id}')">⋯</div>
+    </div>
+    ${p.text?`<div class="post-text">${p.text}</div>`:''}
+    ${p.imgUrl?`<img class="post-img" src="${p.imgUrl}" loading="lazy">`:''}
+    ${p.hasImg===false?'':''}
+    <div class="post-actions">
+      <button class="post-action ${liked?'liked':''}" onclick="tgLike('${p.id}',this)">
+        <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.08C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.53L12 21.35z"/></svg>
+        <span>${p.likes||0}</span>
+      </button>
+      <button class="post-action" onclick="showToast('💬 Comments coming soon')">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>${p.comments||0}</span>
+      </button>
+      <button class="post-action" onclick="sharePost('${p.id}')">
+        <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91 1.61 0 2.92-1.3 2.92-2.91S19.61 16.08 18 16.08z"/></svg>
+        Share
+      </button>
+    </div>`;
+  return div;
+}
+
+async function tgLike(id,btn){
+  if(!currentUser||currentUser.isDemo){showToast('Please login to like');return;}
+  try{
+    const ref=db.collection('posts').doc(id);
+    const doc=await ref.get();
+    if(!doc.exists)return;
+    const data=doc.data();
+    const liked=data.likedBy&&data.likedBy[currentUser.uid];
+    await ref.update({
+      likes:firebase.firestore.FieldValue.increment(liked?-1:1),
+      [`likedBy.${currentUser.uid}`]:!liked
+    });
+    btn.classList.toggle('liked',!liked);
+    btn.classList.add('pop');
+    setTimeout(()=>btn.classList.remove('pop'),300);
+  }catch(e){showToast('Like updated!');}
+}
+
+async function createPost(){
+  if(!currentUser){showToast('Please login first');return;}
+  const text=document.getElementById('post-text').value.trim();
+  if(!text&&!postPhotoFile){showToast('Add text or photo');return;}
+  const btn=document.querySelector('#create-post .btn-primary');
+  btn.textContent='Posting...';btn.disabled=true;
+  try{
+    let imgUrl='';
+    if(postPhotoFile&&!currentUser.isDemo){
+      const ref=stor.ref('posts/'+Date.now()+'_'+postPhotoFile.name);
+      await ref.put(postPhotoFile);
+      imgUrl=await ref.getDownloadURL();
+    }
+    if(!currentUser.isDemo){
+      await db.collection('posts').add({
+        text,imgUrl,
+        authorId:currentUser.uid,
+        authorName:currentUser.displayName||currentUser._data?.name||'User',
+        timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+        likes:0,likedBy:{}
+      });
+    }
+    document.getElementById('post-text').value='';
+    postPhotoFile=null;
+    document.getElementById('post-photo-preview').style.display='none';
+    document.getElementById('post-photo-label').style.display='flex';
+    showToast('✅ Post shared!');
+    navTo('feed');
+  }catch(e){showToast('Error posting. Try again.');}
+  btn.textContent=t('sharePost');btn.disabled=false;
+}
+
+function previewPostPhoto(input){
+  const file=input.files[0];if(!file)return;
+  postPhotoFile=file;
+  const prev=document.getElementById('post-photo-preview');
+  prev.src=URL.createObjectURL(file);
+  prev.style.display='block';
+  document.getElementById('post-photo-label').style.display='none';
+}
+
+function sharePost(id){
+  if(navigator.share){navigator.share({title:'iTimeYou',url:location.href});}
+  else{showToast('Share link copied!');}
+}
+function postOptions(id){showToast('⋯ Options coming soon');}
+
+// ═══════════════════════════════════════════
+//  EXPLORE / MARKETPLACE
+// ═══════════════════════════════════════════
+function renderCategories(){
+  const cont=document.getElementById('cat-chips');
+  cont.innerHTML='';
+  CATS.forEach(c=>{
+    const el=document.createElement('div');
+    el.className='cat-chip'+(c.id==='all'?' active':'');
+    el.innerHTML=`<div class="cat-icon">${c.icon}</div><span class="cat-name">${c.name[lang]||c.name.en}</span>`;
+    el.onclick=()=>{
+      activeCat=c.id;
+      document.querySelectorAll('.cat-chip').forEach(x=>x.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('cat-title').textContent=c.name[lang]||c.name.en;
+      renderListings(c.id);
+    };
+    cont.appendChild(el);
+  });
+}
+
+function renderListings(cat){
+  const grid=document.getElementById('listings-grid');
+  const feat=document.getElementById('featured-row');
+  const items=cat==='all'?LISTINGS:LISTINGS.filter(l=>l.cat===cat);
+
+  // Featured (horizontal scroll) - top 3
+  const top=LISTINGS.slice(0,3);
+  feat.innerHTML='';
+  top.forEach(l=>{
+    const el=document.createElement('div');
+    el.className='hcard';
+    el.innerHTML=`
+      <div class="hcard-img">${l.icon}</div>
+      <div class="hcard-body">
+        <div class="hcard-title">${l.name}</div>
+        <div class="hcard-sub">📍 ${l.loc}</div>
+        <div class="hcard-price">$${l.price}/${l.duration}</div>
+      </div>`;
+    el.onclick=()=>openListing(l);
+    feat.appendChild(el);
+  });
+
+  // Listings grid
+  grid.innerHTML='';
+  if(items.length===0){
+    grid.innerHTML=`<div class="empty" style="padding:40px 24px"><div class="empty-icon">🔍</div><div class="empty-text">No listings in this category yet</div></div>`;
+    return;
+  }
+  items.forEach(l=>{
+    const el=document.createElement('div');
+    el.className='listing-card fade-up';
+    el.innerHTML=`
+      <div class="listing-img-placeholder">${l.icon}</div>
+      <div class="listing-info">
+        <div class="listing-name">${l.name}</div>
+        <div class="listing-loc">📍 ${l.loc}</div>
+        <div class="listing-row">
+          <div class="listing-price">$${l.price}<span style="font-size:12px;font-weight:500;color:var(--muted)">/${l.duration}</span></div>
+          <div class="listing-rating">⭐ ${l.rating} (${l.reviews})</div>
+        </div>
+      </div>`;
+    el.onclick=()=>openListing(l);
+    grid.appendChild(el);
+  });
+}
+
+function openListing(l){
+  const cont=document.getElementById('listing-detail-content');
+  cont.innerHTML=`
+    <div class="det-img">${l.icon}</div>
+    <span class="pill pill-teal">${CATS.find(c=>c.id===l.cat)?.icon} ${l.cat}</span>
+    <div class="det-title" style="margin-top:10px">${l.name}</div>
+    <div class="listing-loc" style="margin-bottom:8px">📍 ${l.loc} · ⭐ ${l.rating} (${l.reviews} reviews)</div>
+    <div class="det-desc">${l.desc}</div>
+    <div class="det-host">
+      <div class="avatar">👤</div>
+      <div><div class="fw700">${l.host}</div><div class="f13 c-muted">Host · Verified ✅</div></div>
+      <button class="btn btn-outline btn-sm" onclick="openChat('${l.host}')">Message</button>
+    </div>
+    <div class="det-tags">${l.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="bookListing(${l.id})" style="flex:2">${t('booking')} — $${l.price}</button>
+      <button class="btn btn-gray btn-sm" onclick="showToast('❤️ Saved!')">♡</button>
+    </div>`;
+  document.getElementById('listing-modal').classList.add('show');
+}
+
+function closeListing(){document.getElementById('listing-modal').classList.remove('show');}
+function bookListing(id){closeListing();openWallet();showToast('💳 Select payment method');}
+
+async function createListing(){
+  if(!currentUser){showToast('Please login');return;}
+  const title=document.getElementById('list-title').value.trim();
+  const cat=document.getElementById('list-cat').value;
+  const loc=document.getElementById('list-location').value.trim();
+  const price=document.getElementById('list-price').value;
+  const dur=document.getElementById('list-duration').value.trim();
+  const desc=document.getElementById('list-desc').value.trim();
+  if(!title||!loc||!price){showToast('Fill required fields');return;}
+  const btn=document.querySelector('#create-listing .btn-primary');
+  btn.textContent='Publishing...';btn.disabled=true;
+  try{
+    let imgUrl='';
+    if(listPhotoFile&&!currentUser.isDemo){
+      const ref=stor.ref('listings/'+Date.now()+'_'+listPhotoFile.name);
+      await ref.put(listPhotoFile);
+      imgUrl=await ref.getDownloadURL();
+    }
+    if(!currentUser.isDemo){
+      await db.collection('listings').add({
+        name:title,cat,loc,price:+price,duration:dur,desc,imgUrl,
+        hostId:currentUser.uid,
+        hostName:currentUser.displayName||currentUser._data?.name||'Host',
+        rating:5.0,reviews:0,
+        timestamp:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    ['list-title','list-location','list-price','list-duration','list-desc'].forEach(id=>document.getElementById(id).value='');
+    listPhotoFile=null;
+    showToast('✅ Listing published!');
+    navTo('explore');
+  }catch(e){showToast('Error publishing. Try again.');}
+  btn.textContent=t('publishListing');btn.disabled=false;
+}
+
+function previewListPhoto(input){
+  const file=input.files[0];if(!file)return;
+  listPhotoFile=file;
+  const prev=document.getElementById('list-photo-preview');
+  prev.src=URL.createObjectURL(file);
+  prev.style.display='block';
+  document.getElementById('list-photo-label').style.display='none';
+}
+
+function switchCreateTab(tab){
+  document.getElementById('ctab-post').className='create-tab'+(tab==='post'?' active':'');
+  document.getElementById('ctab-listing').className='create-tab'+(tab==='listing'?' active':'');
+  document.getElementById('create-post').style.display=tab==='post'?'flex':'none';
+  document.getElementById('create-listing').style.display=tab==='listing'?'flex':'none';
+}
+
+// ═══════════════════════════════════════════
+//  CHAT / MESSAGES
+// ═══════════════════════════════════════════
+const DEMO_CHATS=[
+  {id:'dc1',name:'Somchai P.',av:'🧑',preview:'Thanks for booking! See you tomorrow',time:'2m',badge:1},
+  {id:'dc2',name:'Noy Kitchen',av:'👩‍🍳',preview:'The class starts at 9am at the market',time:'1h',badge:0},
+  {id:'dc3',name:'Khamla Guide',av:'🧔',preview:'Great tour today! Hope you enjoyed it',time:'3h',badge:0},
+  {id:'dc4',name:'iTimeYou Support',av:'💚',preview:'Welcome to iTimeYou! How can we help?',time:'1d',badge:0},
+];
+
+function renderChatList(){
+  const list=document.getElementById('chat-list');
+  list.innerHTML='';
+  DEMO_CHATS.forEach(c=>{
+    const el=document.createElement('div');
+    el.className='chat-item';
+    el.innerHTML=`
+      <div class="chat-av">${c.av}</div>
+      <div class="chat-info">
+        <div class="chat-name">${c.name}</div>
+        <div class="chat-preview">${c.preview}</div>
+      </div>
+      <div class="chat-meta">
+        <div class="chat-time">${c.time}</div>
+        ${c.badge?`<div class="chat-badge">${c.badge}</div>`:''}
+      </div>`;
+    el.onclick=()=>openChat(c.name,c.av);
+    list.appendChild(el);
+  });
+}
+
+function openChat(name,av='👤'){
+  chatPeerName=name;
+  chatPeerId=name.replace(/\s/g,'_').toLowerCase();
+  document.getElementById('chat-peer-name').textContent=name;
+  document.getElementById('chat-peer-av').textContent=av;
+  prevScreen=currentScreen;
+  currentScreen='chat';
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-chat').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  renderMessages();
+}
+
+function renderMessages(){
+  const cont=document.getElementById('chat-messages');
+  if(chatUnsub)chatUnsub();
+  if(!currentUser||currentUser.isDemo){
+    // Demo messages
+    cont.innerHTML='';
+    const demoMsgs=[
+      {text:'Hello! I\'m interested in your service.',me:true,time:'10:30'},
+      {text:'Hi! Great to hear from you. Which service are you interested in?',me:false,time:'10:31'},
+      {text:'The cooking class looks amazing!',me:true,time:'10:33'},
+      {text:'Thank you! We have slots available this weekend. Would Saturday or Sunday work for you?',me:false,time:'10:34'},
+    ];
+    demoMsgs.forEach(m=>{
+      const el=document.createElement('div');
+      el.className='msg '+(m.me?'me':'them');
+      el.innerHTML=`<div class="msg-bubble">${m.text}</div><div class="msg-time">${m.time}</div>`;
+      cont.appendChild(el);
+    });
+    return;
+  }
+  const chatId=[currentUser.uid,chatPeerId].sort().join('_');
+  chatUnsub=db.collection('chats').doc(chatId).collection('messages')
+    .orderBy('timestamp')
+    .limit(50)
+    .onSnapshot(snap=>{
+      cont.innerHTML='';
+      snap.forEach(doc=>{
+        const m={id:doc.id,...doc.data()};
+        const isMe=m.senderId===currentUser.uid;
+        const el=document.createElement('div');
+        el.className='msg '+(isMe?'me':'them');
+        if(m.imgUrl){
+          el.innerHTML=`<div class="msg-img"><img src="${m.imgUrl}" loading="lazy"></div><div class="msg-time">${timeAgo(m.timestamp?.toDate?.())}</div>`;
+        } else {
+          el.innerHTML=`<div class="msg-bubble">${m.text||''}</div><div class="msg-time">${timeAgo(m.timestamp?.toDate?.())}</div>`;
+        }
+        cont.appendChild(el);
+      });
+      cont.scrollTop=cont.scrollHeight;
+    });
+}
+
+async function sendMsg(){
+  const input=document.getElementById('chat-input');
+  const text=input.value.trim();
+  if(!text)return;
+  input.value='';
+  if(!currentUser||currentUser.isDemo){
+    const cont=document.getElementById('chat-messages');
+    const el=document.createElement('div');
+    el.className='msg me';
+    el.innerHTML=`<div class="msg-bubble">${text}</div><div class="msg-time">now</div>`;
+    cont.appendChild(el);
+    cont.scrollTop=cont.scrollHeight;
+    setTimeout(()=>{
+      const r=document.createElement('div');
+      r.className='msg them';
+      r.innerHTML=`<div class="msg-bubble">Thanks for your message! I'll get back to you soon 😊</div><div class="msg-time">now</div>`;
+      cont.appendChild(r);
+      cont.scrollTop=cont.scrollHeight;
+    },1000);
+    return;
+  }
+  const chatId=[currentUser.uid,chatPeerId].sort().join('_');
+  try{
+    await db.collection('chats').doc(chatId).collection('messages').add({
+      text,senderId:currentUser.uid,
+      timestamp:firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }catch(e){showToast('Error sending message');}
+}
+
+async function sendChatImage(input){
+  const file=input.files[0];if(!file)return;
+  if(!currentUser||currentUser.isDemo){showToast('Login to send images');return;}
+  try{
+    const ref=stor.ref('chat/'+Date.now()+'_'+file.name);
+    await ref.put(file);
+    const imgUrl=await ref.getDownloadURL();
+    const chatId=[currentUser.uid,chatPeerId].sort().join('_');
+    await db.collection('chats').doc(chatId).collection('messages').add({
+      imgUrl,senderId:currentUser.uid,
+      timestamp:firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }catch(e){showToast('Error sending image');}
+}
+
+// ═══════════════════════════════════════════
+//  PROFILE
+// ═══════════════════════════════════════════
+function updateProfileUI(){
+  if(!currentUser)return;
+  const name=currentUser.displayName||currentUser._data?.name||'User';
+  const bio=currentUser._data?.bio||'iTimeYou member';
+  document.getElementById('profile-name').textContent=name;
+  document.getElementById('profile-bio').textContent=bio;
+  const av=document.getElementById('profile-av');
+  if(currentUser.photoURL){
+    av.innerHTML=`<img src="${currentUser.photoURL}" alt="">`;
+  } else {
+    av.textContent=name.charAt(0).toUpperCase()||'👤';
+  }
+  document.getElementById('pstat-posts').textContent=currentUser._data?.posts||0;
+  document.getElementById('pstat-followers').textContent=currentUser._data?.followers||0;
+  document.getElementById('pstat-following').textContent=currentUser._data?.following||0;
+  renderProfileGrid();
+}
+
+function renderProfileGrid(){
+  const grid=document.getElementById('profile-grid');
+  grid.innerHTML='';
+  // Show emoji placeholders or real posts
+  const emojis=['🌊','🍜','🏯','🎭','🧭','🌿','🎋','🏡'];
+  emojis.forEach((e,i)=>{
+    const el=document.createElement('div');
+    el.className='grid-post';
+    el.textContent=e;
+    el.onclick=()=>showToast('Post '+( i+1));
+    grid.appendChild(el);
+  });
+}
+
+function editProfile(){showToast('✏️ Profile edit coming soon!');}
+
+// ═══════════════════════════════════════════
+//  WALLET
+// ═══════════════════════════════════════════
+function openWallet(){document.getElementById('wallet-modal').classList.add('show');}
+function closeWallet(){document.getElementById('wallet-modal').classList.remove('show');}
+
+function showQR(type,name,addr){
+  document.getElementById('qr-title').textContent='📲 Pay via '+name;
+  document.getElementById('qr-address').textContent=addr;
+  closeWallet();
+  document.getElementById('qr-modal').classList.add('show');
+  drawQR(addr);
+}
+function closeQR(){document.getElementById('qr-modal').classList.remove('show');}
+
+// Simple QR code renderer
+function drawQR(data){
+  const canvas=document.getElementById('qr-canvas');
+  const ctx=canvas.getContext('2d');
+  const size=220;
+  // Draw a simple visual representation (not a real QR)
+  ctx.fillStyle='#fff';
+  ctx.fillRect(0,0,size,size);
+
+  // Generate deterministic pattern from data
+  const hash=data.split('').reduce((acc,c)=>acc+c.charCodeAt(0),0);
+  const cell=8;const cols=size/cell;
+  ctx.fillStyle='#1a1a1a';
+
+  // Corner squares
+  [[0,0],[cols-7,0],[0,cols-7]].forEach(([cx,cy])=>{
+    ctx.fillRect(cx*cell,cy*cell,7*cell,7*cell);
+    ctx.fillStyle='#fff';
+    ctx.fillRect((cx+1)*cell,(cy+1)*cell,5*cell,5*cell);
+    ctx.fillStyle='#1a1a1a';
+    ctx.fillRect((cx+2)*cell,(cy+2)*cell,3*cell,3*cell);
+  });
+
+  // Data pattern
+  for(let r=0;r<cols;r++){
+    for(let c=0;c<cols;c++){
+      if(r<9&&(c<9||c>cols-10))continue;
+      if(r>cols-10&&c<9)continue;
+      const v=((hash*(r*cols+c+1))%7)>3;
+      if(v){ctx.fillStyle='#1a1a1a';ctx.fillRect(c*cell,r*cell,cell-1,cell-1);}
+    }
+  }
+
+  // Center logo
+  ctx.fillStyle='#2ABFB0';
+  ctx.fillRect(size/2-20,size/2-20,40,40);
+  ctx.fillStyle='#fff';
+  ctx.font='bold 14px sans-serif';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText('iTY',size/2,size/2);
+}
+
+// ═══════════════════════════════════════════
+//  CALL
+// ═══════════════════════════════════════════
+function startCall(type){
+  const overlay=document.getElementById('call-overlay');
+  document.getElementById('call-name').textContent=(type==='video'?'📹 ':'📞 ')+chatPeerName;
+  overlay.style.display='flex';
+  showToast(type==='video'?'📹 Video call connecting...':'📞 Audio call connecting...');
+}
+function endCall(){document.getElementById('call-overlay').style.display='none';showToast('📵 Call ended');}
+
+// ═══════════════════════════════════════════
+//  NOTIFICATIONS
+// ═══════════════════════════════════════════
+function showNotifications(){showToast('🔔 No new notifications');}
+
+// ═══════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════
+function timeAgo(date){
+  if(!date)return 'just now';
+  const s=Math.floor((Date.now()-date)/1000);
+  if(s<60)return s+'s ago';
+  if(s<3600)return Math.floor(s/60)+'m ago';
+  if(s<86400)return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+
+let toastTimer;
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+// ═══════════════════════════════════════════
+//  PWA
+// ═══════════════════════════════════════════
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredPrompt=e;
+});
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  applyLang();
+});
+</script>
+</body>
+</html>
